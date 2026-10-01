@@ -19,7 +19,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { setTimeout as delay } from "node:timers/promises";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 type JsonObject = Record<string, unknown>;
 type RpcResponse = JsonObject & {
@@ -43,7 +43,7 @@ type ModelInfo = JsonObject & {
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const extensionPath = join(repoRoot, "src", "index.ts");
-const primaryModel = process.env.PI_OPENAI_SERVER_COMPACTION_TEST_MODEL ?? "openai/gpt-5.4-nano";
+const primaryModel = process.env.PI_OPENAI_SERVER_COMPACTION_TEST_MODEL ?? "openai-codex/gpt-6-luna";
 const primaryModelProvider = primaryModel.includes("/") ? primaryModel.split("/")[0] ?? "openai" : "openai";
 const primaryModelId = primaryModel.includes("/") ? primaryModel.split("/").at(-1) ?? primaryModel : primaryModel;
 const defaultRequestTimeoutMs = 120_000;
@@ -84,10 +84,14 @@ function nestedRecord(value: unknown): JsonObject {
   return isRecord(value) ? value : {};
 }
 
-function assistantText(messages: unknown[]): string {
+export function assistantText(messages: unknown[]): string {
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index];
     if (!isRecord(message) || message.role !== "assistant") continue;
+    expect(
+      message.stopReason !== "error" && message.stopReason !== "aborted",
+      `Assistant turn failed (${String(message.provider)}/${String(message.model)}): ${String(message.errorMessage ?? message.stopReason)}`,
+    );
     const content = Array.isArray(message.content) ? message.content : [];
     return content
       .filter((block): block is JsonObject => isRecord(block) && block.type === "text")
@@ -106,7 +110,7 @@ async function loadJsonl(path: string): Promise<JsonObject[]> {
     .map((line) => JSON.parse(line) as JsonObject);
 }
 
-function chooseAltModel(
+export function chooseAltModel(
   models: ModelInfo[],
   currentProvider: string,
   currentId: string,
@@ -126,7 +130,11 @@ function chooseAltModel(
   );
 
   if (sameFamily.length > 0) {
-    for (const wanted of ["gpt-5.4-mini", "gpt-4.1-mini", "gpt-5-mini", "gpt-5.4-nano", "gpt-5.1"]) {
+    // The model registry includes API-only models that ChatGPT accounts cannot use.
+    const preferred = currentProvider === "openai-codex"
+      ? ["gpt-5.5", "gpt-5.3-codex", "gpt-5.2-codex"]
+      : ["gpt-5.4-mini", "gpt-4.1-mini", "gpt-5-mini", "gpt-5.4-nano", "gpt-5.1"];
+    for (const wanted of preferred) {
       const match = sameFamily.find((model) => model.id === wanted && model.id !== currentId);
       if (match) return match;
     }
@@ -785,4 +793,6 @@ async function main(): Promise<void> {
   }
 }
 
-await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await main();
+}

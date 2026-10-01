@@ -167,16 +167,34 @@ Smoke test (offline, verifies imports and key algorithms):
 npm run smoke
 ```
 
-Live end-to-end test (requires working Pi + OpenAI auth):
+Live end-to-end test (requires working Pi auth; defaults to `openai-codex/gpt-6-luna`):
 
 ```bash
-npm run test:live
+PI_OPENAI_SERVER_COMPACTION_ENABLED=1 npm run test:live
 ```
+
+Validated with `openai-codex/gpt-6-luna`: same-process continuity, model-switch
+round-trips, fork safety, resume continuity, and resume after a model switch all
+passed. The reduced-plaintext replay test runs only for direct `openai/*` models
+and is skipped for Codex.
 
 Override the test model:
 
 ```bash
-PI_OPENAI_SERVER_COMPACTION_TEST_MODEL=openai-codex/gpt-5.6-sol npm run test:live
+PI_OPENAI_SERVER_COMPACTION_ENABLED=1 \
+PI_OPENAI_SERVER_COMPACTION_TEST_MODEL=openai-codex/gpt-6.1-sol \
+npm run test:live
+```
+
+Codex model-switch tests prefer `gpt-5.5`, then `gpt-5.3-codex` or
+`gpt-5.2-codex`, when available. Models listed in Pi's registry are not necessarily
+supported by your ChatGPT account; failed assistant turns report the provider,
+model, and API error.
+
+Offline regression check for live-test model selection and error reporting:
+
+```bash
+node --experimental-strip-types tests/live/openai-compaction-rpc-live.test.ts
 ```
 
 ## Limitations
