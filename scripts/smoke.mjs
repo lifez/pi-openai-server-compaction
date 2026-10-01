@@ -91,6 +91,7 @@ for (const packageName of [
   ensureLocalPeerLink(packageName);
 }
 
+const { convertToLlm } = await import("@earendil-works/pi-coding-agent");
 const { default: extensionFactory } = await import(pathToFileURL(join(repoRoot, "src", "index.ts")).href);
 assert.equal(typeof extensionFactory, "function", "extension entrypoint should export a function");
 
@@ -221,20 +222,27 @@ for (const [message, marker] of flattenedKinds) {
   assert.match(JSON.stringify(items), marker, `${message.role} content must survive conversion`);
 }
 
-// A bashExecution message Pi excludes from context must stay excluded.
-assert.deepEqual(
-  messageToResponseItems({
-    role: "bashExecution",
-    command: "echo secret",
-    output: "EXCLUDED_TEXT",
-    exitCode: 0,
-    cancelled: false,
-    truncated: false,
-    excludeFromContext: true,
-    timestamp: 0,
-  }),
-  [],
-);
+// Compare the full converted content with Pi's context policy, not just markers.
+// Add fixtures here when Pi introduces new context-bearing message kinds.
+const contextPolicyMessages = [
+  ...flattenedKinds.map(([message]) => message),
+  { role: "custom", customType: "note", content: [
+    { type: "text", text: "FIRST_NOTE_PART" },
+    { type: "text", text: "SECOND_NOTE_PART" },
+    { type: "image", data: "AAAA", mimeType: "image/png" },
+  ], display: false, timestamp: 0 },
+  { role: "bashExecution", command: "echo secret", output: "EXCLUDED_TEXT",
+    exitCode: 0, cancelled: false, truncated: false, excludeFromContext: true, timestamp: 0 },
+  { role: "unknown", content: "NOT_LLM_CONTEXT", timestamp: 0 },
+];
+for (const message of contextPolicyMessages) {
+  const expected = convertToLlm([message]).flatMap(messageToResponseItems);
+  assert.deepEqual(
+    messageToResponseItems(message),
+    expected,
+    `${message.role} must preserve exactly the context Pi would send (including exclusions)`,
+  );
+}
 
 // Regression: extension messages are persisted as `custom_message` branch entries rather
 // than `message` entries, and a branch walk that only reads `message` entries loses them.
