@@ -1,5 +1,10 @@
 # pi-openai-server-compaction
 
+> **Independently maintained fork:** This project is forked from
+> [algal/pi-openai-server-compaction](https://github.com/algal/pi-openai-server-compaction).
+> We maintain and extend this fork because upstream has not been receiving updates.
+> The installation commands below use [this fork](https://github.com/lifez/pi-openai-server-compaction), not upstream.
+
 This is a Pi extension which adds **Codex-style remote compaction** for OpenAI models, giving you better continuity across compaction boundaries while preserving all of Pi's normal features.
 
 What does that mean? Why would you want it? My impression has been that Codex compacts better than Claude Code and better than Pi. And I supposed this was because Codex compacts by using OpenAI's server-side Responses compaction protocol. That protocol sends a `compaction_trigger` through `POST /v1/responses` and receives an encrypted `compaction` item. This extension configures Pi to use that protocol for OpenAI models alongside Pi's native compaction logic.
@@ -55,19 +60,19 @@ https://x.com/alexisgallagher/status/2042396986327060736?s=20 .)
 Project-local (recommended):
 
 ```bash
-pi install -l git:github.com/algal/pi-openai-server-compaction
+pi install -l git:github.com/lifez/pi-openai-server-compaction
 ```
 
 Global:
 
 ```bash
-pi install git:github.com/algal/pi-openai-server-compaction
+pi install git:github.com/lifez/pi-openai-server-compaction
 ```
 
 One-shot, non-persistent:
 
 ```bash
-git clone https://github.com/algal/pi-openai-server-compaction.git
+git clone https://github.com/lifez/pi-openai-server-compaction.git
 cd pi-openai-server-compaction && npm install
 pi -e ./src/index.ts --model openai/gpt-5.6-luna
 ```
